@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     THREADS:            int | None = None
     BASE_DATASET_PATH:  str | None = None
+    SAVE:               str | None = None
 
     @field_validator("THREADS")
     def validate_host(cls, value: int | None) -> int:
@@ -20,6 +21,13 @@ class Settings(BaseSettings):
     def validate_port(cls, value: str | None) -> str:
         if value is None:
             return "../dataset_info/base.txt"
+        
+        return value
+    
+    @field_validator("SAVE")
+    def validate_save(cls, value: str | None) -> str:
+        if value is None:
+            return "./model.pth"
         
         return value
 

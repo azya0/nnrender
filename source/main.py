@@ -1,3 +1,6 @@
+import os
+import random
+
 from dataclasses import dataclass
 import torch
 from torchinfo import summary
@@ -7,7 +10,6 @@ from config import Settings, get_settings
 from dataset import LoadDatasetProps, load_dataset
 from validation.model import AttributeData
 from model import Model, ModelProps
-import random
 
 
 random.seed(18022004)
@@ -33,6 +35,7 @@ class TrainIterationProps:
     device:     torch.device
     model:      Model
     optimizer:  torch.optim.Adam
+    save:       str
 
 
 def iteration(props: TrainIterationProps, iteration_number: int, valid: bool = False):
@@ -61,11 +64,14 @@ def iteration(props: TrainIterationProps, iteration_number: int, valid: bool = F
 
 
 def train(iteration_props: TrainIterationProps, epoch: int = 50):
-    iteration(iteration_props, 0, True)
+    try:
+        iteration(iteration_props, 0, True)
 
-    for index in range(epoch):
-        iteration(iteration_props, index + 1)
-        iteration(iteration_props, index + 1, True)
+        for index in range(epoch):
+            iteration(iteration_props, index + 1)
+            iteration(iteration_props, index + 1, True)
+    finally:
+        torch.save(iteration_props.model.state_dict(), iteration_props.save)
 
 
 def main():
@@ -73,12 +79,18 @@ def main():
 
     device = get_device(True)
 
-    model = Model(ModelProps(
+    model: Model = Model(ModelProps(
         device,
         4,
         2,
         16
     )).to(device)
+
+    if os.path.exists((save := settings.SAVE)):
+        print(f"Loading model from: {save}")
+        model.load_state_dict(torch.load(settings.SAVE))
+    else:
+        print(f"Miss {save}. Creating new model")
 
     dataset = load_dataset(LoadDatasetProps(
         settings=settings,
@@ -94,7 +106,8 @@ def main():
         dataset,
         device,
         model,
-        torch.optim.Adam(model.parameters(), lr=1e-3),
+        torch.optim.RMSprop(model.parameters(), lr=1e-3),
+        settings.SAVE,
     ))
 
 
