@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     @field_validator("SAVE")
     def validate_save(cls, value: str | None) -> str:
         if value is None:
-            return "./model.pth"
+            return "./saves/another_model"
         
         return value
 

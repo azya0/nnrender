@@ -25,14 +25,11 @@ def get_device(use_cuda: bool) -> torch.device:
     return torch.device("cuda")
 
 
-def loss_function(output: torch.Tensor, target: torch.Tensor):
-    return torch.nn.L1Loss()(output, target)
-
-
 @dataclass
 class TrainIterationProps:
     dataset:    tuple[torch.Tensor, torch.Tensor]
     device:     torch.device
+    loss_func:  torch.nn.MSELoss
     model:      Model
     optimizer:  torch.optim.Adam
     save:       str
@@ -51,7 +48,7 @@ def iteration(props: TrainIterationProps, iteration_number: int, valid: bool = F
         
         result: torch.Tensor = props.model(image)
 
-        loss = loss_function(result, label)
+        loss = props.loss_func(result, label)
 
         if not valid:
             loss.backward()
@@ -69,10 +66,15 @@ def train(iteration_props: TrainIterationProps, epoch: int = 50):
 
         for index in range(epoch):
             iteration(iteration_props, index + 1)
+            print("Saving...")
+            torch.save(iteration_props.model.state_dict(), f"{iteration_props.save}_{index + 1}.pth")
+            print("Saved!")
             iteration(iteration_props, index + 1, True)
+    except KeyboardInterrupt:
+        pass
     finally:
-        torch.save(iteration_props.model.state_dict(), iteration_props.save)
-
+        torch.save(iteration_props.model.state_dict(), f"{iteration_props.save}_final.pth")
+        print("Model was saved!")
 
 def main():
     settings: Settings = get_settings()
@@ -86,11 +88,11 @@ def main():
         16
     )).to(device)
 
-    if os.path.exists((save := settings.SAVE)):
-        print(f"Loading model from: {save}")
-        model.load_state_dict(torch.load(settings.SAVE))
-    else:
-        print(f"Miss {save}. Creating new model")
+    # if os.path.exists((save := settings.SAVE)):
+    #     print(f"Loading model from: {save}")
+    #     model.load_state_dict(torch.load(settings.SAVE))
+    # else:
+    #     print(f"Miss {save}. Creating new model")
 
     dataset = load_dataset(LoadDatasetProps(
         settings=settings,
@@ -100,11 +102,12 @@ def main():
         valid_percent=0.2,
     ))
 
-    summary(model, (6, 4, 80, 144))
+    summary(model, (32, 4, 80, 144))
 
     train(TrainIterationProps(
         dataset,
         device,
+        torch.nn.MSELoss(),
         model,
         torch.optim.RMSprop(model.parameters(), lr=1e-3),
         settings.SAVE,

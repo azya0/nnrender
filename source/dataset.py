@@ -13,6 +13,22 @@ from config import Settings
 from validation.model import AttributeData
 
 
+@dataclass(frozen=True)
+class GetImageProps:
+    dataset_index:  int
+    path:           str
+    real_index:     int
+    transform:      transforms.Compose
+
+
+@lru_cache
+def get_image_data(props: GetImageProps) -> Tensor:
+    image = Image.open(f"{props.path}/screenshot_{props.real_index}_{props.dataset_index}.png")
+    image = image.resize((144, 80), Image.Resampling.LANCZOS).convert("RGBA")
+
+    return props.transform(image)
+
+
 @dataclass
 class CustomDatasetProps:
     settings:   Settings
@@ -34,17 +50,10 @@ class CustomDataset(Dataset):
     def __len__(self) -> int:
         return len(self.iterations)
 
-    @lru_cache
     def __getitem__(self, index: int) -> tuple[Tensor, Tensor]:
-        def get_image_data(real_index: int, dataset_index: int) -> Tensor:
-            image = Image.open(f"{self.path}/screenshot_{real_index}_{dataset_index}.png")
-            image = image.resize((144, 80), Image.Resampling.LANCZOS).convert("RGBA")
-            
-            return self.transform(image)
-        
         return (
-            get_image_data(self.iterations[index], 1),
-            get_image_data(self.iterations[index], 2),
+            get_image_data(GetImageProps(1, self.path, self.iterations[index], self.transform)),
+            get_image_data(GetImageProps(2, self.path, self.iterations[index], self.transform)),
         )
 
 
@@ -64,8 +73,6 @@ def load_dataset(props: LoadDatasetProps) -> tuple[DataLoader, DataLoader]:
     data: list[AttributeData] = [
         props._class.model_validate(dictionary, from_attributes=True) for dictionary in data
     ]
-
-    data = data[:64000]
 
     base_length: int = len(data)
 
@@ -90,6 +97,6 @@ def load_dataset(props: LoadDatasetProps) -> tuple[DataLoader, DataLoader]:
     ))
     
     return (
-        DataLoader(train_dataset,       batch_size=6,  shuffle=True),
-        DataLoader(validation_dataset,  batch_size=6,  shuffle=False),
+        DataLoader(train_dataset,       batch_size=32,  shuffle=True, num_workers=props.settings.THREADS),
+        DataLoader(validation_dataset,  batch_size=32,  shuffle=False, num_workers=props.settings.THREADS),
     )
