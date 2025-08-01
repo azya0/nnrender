@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     THREADS:            int | None = None
     BASE_DATASET_PATH:  str | None = None
+    LOAD:               str | None = None
     SAVE:               str | None = None
 
     @field_validator("THREADS")
@@ -24,6 +25,13 @@ class Settings(BaseSettings):
         
         return value
     
+    @field_validator("LOAD")
+    def validate_load(cls, value: str | None) -> str:
+        if value is None:
+            return "./saves/another_model_final.pth"
+        
+        return value
+
     @field_validator("SAVE")
     def validate_save(cls, value: str | None) -> str:
         if value is None:

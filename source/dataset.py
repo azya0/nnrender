@@ -97,6 +97,6 @@ def load_dataset(props: LoadDatasetProps) -> tuple[DataLoader, DataLoader]:
     ))
     
     return (
-        DataLoader(train_dataset,       batch_size=32,  shuffle=True, num_workers=props.settings.THREADS),
-        DataLoader(validation_dataset,  batch_size=32,  shuffle=False, num_workers=props.settings.THREADS),
+        DataLoader(train_dataset,       batch_size=64,  shuffle=True,   num_workers=props.settings.THREADS, pin_memory=True),
+        DataLoader(validation_dataset,  batch_size=64,  shuffle=False,  num_workers=props.settings.THREADS, pin_memory=True),
     )

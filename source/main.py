@@ -4,6 +4,7 @@ import random
 from dataclasses import dataclass
 import torch
 from torchinfo import summary
+
 from tqdm import tqdm
 
 from config import Settings, get_settings
@@ -36,6 +37,8 @@ class TrainIterationProps:
 
 
 def iteration(props: TrainIterationProps, iteration_number: int, valid: bool = False):
+    props.model.train(not valid)
+    
     data: torch.Tensor = props.dataset[0 if not valid else 1]
 
     loss_result: float = 0
@@ -73,7 +76,7 @@ def train(iteration_props: TrainIterationProps, epoch: int = 50):
     except KeyboardInterrupt:
         pass
     finally:
-        torch.save(iteration_props.model.state_dict(), f"{iteration_props.save}_final.pth")
+        torch.save(iteration_props.model.state_dict(), f"{iteration_props.save}.pth")
         print("Model was saved!")
 
 def main():
@@ -88,11 +91,11 @@ def main():
         16
     )).to(device)
 
-    # if os.path.exists((save := settings.SAVE)):
-    #     print(f"Loading model from: {save}")
-    #     model.load_state_dict(torch.load(settings.SAVE))
-    # else:
-    #     print(f"Miss {save}. Creating new model")
+    if os.path.exists((save := settings.LOAD)):
+        print(f"Loading model from: {save}")
+        model.load_state_dict(torch.load(save))
+    else:
+        print(f"Miss {save}. Creating new model")
 
     dataset = load_dataset(LoadDatasetProps(
         settings=settings,
@@ -102,7 +105,7 @@ def main():
         valid_percent=0.2,
     ))
 
-    summary(model, (32, 4, 80, 144))
+    summary(model, (64, 4, 80, 144))
 
     train(TrainIterationProps(
         dataset,
